@@ -11,4 +11,4 @@ Features
 Technologies Used
 * Java: Core logic and functionality
 * Java Swing: GUI components
-* JDK Version: 17 (compatible with other JDK versions as well)
+* JDK Version: 21.0.4 (compatible with other JDK versions as well)
