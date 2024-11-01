@@ -1,3 +1,5 @@
+//package magilan.bankingapp;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -7,6 +9,8 @@ import java.util.HashMap;
 
 // Custom Exception for invalid transactions
 class InvalidTransactionException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     public InvalidTransactionException(String message) {
         super(message);
     }
@@ -59,7 +63,7 @@ class BankAccount extends AbstractBankAccount {
             throw new InvalidTransactionException("Deposit amount must be positive.");
         }
         balance += amount;
-        addTransaction("Deposited Rupees : " + amount);
+        addTransaction("Deposited ₹: " + amount);
     }
 
     @Override
@@ -71,153 +75,192 @@ class BankAccount extends AbstractBankAccount {
             throw new InvalidTransactionException("Insufficient funds for this withdrawal.");
         }
         balance -= amount;
-        addTransaction("Withdrew Rupees : " + amount);
+        addTransaction("Withdrew ₹: " + amount);
     }
 }
 
 // GUI class for the Banking Application
+@SuppressWarnings("serial")
 public class BankingApplication extends JFrame {
     private HashMap<String, BankAccount> accounts;
-    private JTextField accountNumberField;
-    private JTextField amountField;
-    private JTextArea outputArea;
+    private JTextField loginAccountNumberField;
+    private JPasswordField passwordField;
+    private JPanel mainPanel;
+    private BankAccount currentAccount; // Track the current account for the session
+    private JDialog accountDialog; // Dialog reference for account info
 
     public BankingApplication() {
         accounts = new HashMap<>();
-        initUI();
+        initLoginUI();
     }
 
-    private void initUI() {
-        setTitle("Simple Banking Application");
-        setSize(500, 400);
+    // Initialize the Login UI
+    private void initLoginUI() {
+        setTitle("GTT Bank - Login");
+        setSize(600, 300);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        // Account Number Panel
-        JPanel accountPanel = new JPanel(new FlowLayout());
-        accountPanel.add(new JLabel("Account Number:"));
-        accountNumberField = new JTextField(10);
-        accountPanel.add(accountNumberField);
+        mainPanel = new JPanel(new CardLayout());
 
-        // Amount Panel
-        JPanel amountPanel = new JPanel(new FlowLayout());
-        amountPanel.add(new JLabel("Amount in Rupees:"));
-        amountField = new JTextField(10);
-        amountPanel.add(amountField);
+        // Login Panel
+        JPanel loginPanel = new JPanel();
+        loginPanel.setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Buttons Panel
+        JLabel titleLabel = new JLabel("LOGIN", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        loginPanel.add(titleLabel, gbc);
+
+        JLabel accountNumberLabel = new JLabel("ACCOUNT NUMBER");
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        loginPanel.add(accountNumberLabel, gbc);
+
+        loginAccountNumberField = new JTextField(15);
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        loginPanel.add(loginAccountNumberField, gbc);
+
+        JLabel passwordLabel = new JLabel("PASSWORD");
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        loginPanel.add(passwordLabel, gbc);
+
+        passwordField = new JPasswordField(15);
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        loginPanel.add(passwordField, gbc);
+
+        JButton loginButton = new JButton("LOGIN");
+        loginButton.addActionListener(new LoginListener());
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        loginPanel.add(loginButton, gbc);
+
+        mainPanel.add(loginPanel, "loginPanel");
+        add(mainPanel);
+    }
+
+    // Initialize the Home UI after login
+    private void initHomeUI() {
+        JPanel homePanel = new JPanel(new BorderLayout());
+
+        JLabel bankLabel = new JLabel("THE GTT BANK", SwingConstants.CENTER);
+        bankLabel.setFont(new Font("Serif", Font.BOLD, 36));
+        homePanel.add(bankLabel, BorderLayout.CENTER);
+
         JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.BLUE);
 
-        JButton createButton = new JButton("Create Account");
-        createButton.addActionListener(new CreateAccountListener());
-        buttonPanel.add(createButton);
-
+        // Adding buttons to the home screen
         JButton depositButton = new JButton("Deposit");
-        depositButton.addActionListener(new DepositListener());
+        depositButton.addActionListener(e -> performDeposit());
         buttonPanel.add(depositButton);
 
         JButton withdrawButton = new JButton("Withdraw");
-        withdrawButton.addActionListener(new WithdrawListener());
+        withdrawButton.addActionListener(e -> performWithdraw());
         buttonPanel.add(withdrawButton);
 
-        JButton balanceButton = new JButton("View Balance");
-        balanceButton.addActionListener(new BalanceListener());
+        JButton balanceButton = new JButton("Check Balance");
+        balanceButton.addActionListener(e -> viewBalance());
         buttonPanel.add(balanceButton);
 
         JButton historyButton = new JButton("Transaction History");
-        historyButton.addActionListener(new TransactionHistoryListener());
+        historyButton.addActionListener(e -> viewTransactionHistory());
         buttonPanel.add(historyButton);
 
-        // Output Area
-        outputArea = new JTextArea(10, 40);
-        outputArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(outputArea);
+        JButton accountButton = new JButton("Account");
+        accountButton.addActionListener(e -> viewAccount());
+        buttonPanel.add(accountButton);
 
-        // Layout
-        setLayout(new BorderLayout());
-        add(accountPanel, BorderLayout.NORTH);
-        add(amountPanel, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
-        add(scrollPane, BorderLayout.WEST);
+        homePanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        pack();
+        mainPanel.add(homePanel, "homePanel");
+        ((CardLayout) mainPanel.getLayout()).show(mainPanel, "homePanel");
     }
 
-    // Action Listeners
-    private class CreateAccountListener implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            String accountNumber = accountNumberField.getText();
-            if (!accounts.containsKey(accountNumber)) {
-                accounts.put(accountNumber, new BankAccount(accountNumber));
-                outputArea.append("Account created with account number: " + accountNumber + "\n");
-            } else {
-                outputArea.append("Account already exists.\n");
+    private void viewAccount() {
+        String accountInfo = "Account Number (last 4 digits): " + currentAccount.getAccountNumber().substring(currentAccount.getAccountNumber().length() - 4);
+        
+        // Create a JPanel to display account information and logout button
+        JPanel accountPanel = new JPanel();
+        accountPanel.setLayout(new BoxLayout(accountPanel, BoxLayout.Y_AXIS));
+        accountPanel.add(new JLabel(accountInfo));
+        
+        JButton logoutButton = new JButton("Log Out");
+        logoutButton.addActionListener(e -> logOut());
+        accountPanel.add(logoutButton);
+        
+        // Show account information in a dialog 
+        accountDialog = new JDialog(this, "Account Information", true);
+        accountDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        accountDialog.getContentPane().add(accountPanel);
+        accountDialog.pack();
+        accountDialog.setLocationRelativeTo(this); // Center the dialog
+        accountDialog.setVisible(true); // Show the dialog
+    }
+
+    private void logOut() {
+        accountDialog.dispose(); // Close the account dialog
+        currentAccount = null; // Clear current account
+        ((CardLayout) mainPanel.getLayout()).show(mainPanel, "loginPanel"); // Show login panel
+    }
+
+    private void performDeposit() {
+        String amountString = JOptionPane.showInputDialog(this, "Enter deposit amount:");
+        if (amountString != null) {
+            try {
+                double amount = Double.parseDouble(amountString);
+                currentAccount.deposit(amount);
+                JOptionPane.showMessageDialog(this, "Deposited ₹: " + amount);
+            } catch (InvalidTransactionException | NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, e.getMessage());
             }
         }
     }
 
-    private class DepositListener implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            String accountNumber = accountNumberField.getText();
-            BankAccount account = accounts.get(accountNumber);
-            if (account != null) {
-                try {
-                    double amount = Double.parseDouble(amountField.getText());
-                    account.deposit(amount);
-                    outputArea.append("Deposited Rupees " + amount + " to account " + accountNumber + "\n");
-                } catch (InvalidTransactionException ex) {
-                    outputArea.append(ex.getMessage() + "\n");
-                } catch (NumberFormatException ex) {
-                    outputArea.append("Please enter a valid amount.\n");
-                }
-            } else {
-                outputArea.append("Account does not exist.\n");
+    private void performWithdraw() {
+        String amountString = JOptionPane.showInputDialog(this, "Enter withdrawal amount:");
+        if (amountString != null) {
+            try {
+                double amount = Double.parseDouble(amountString);
+                currentAccount.withdraw(amount);
+                JOptionPane.showMessageDialog(this, "Withdrew ₹: " + amount);
+            } catch (InvalidTransactionException | NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, e.getMessage());
             }
         }
     }
 
-    private class WithdrawListener implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            String accountNumber = accountNumberField.getText();
-            BankAccount account = accounts.get(accountNumber);
-            if (account != null) {
-                try {
-                    double amount = Double.parseDouble(amountField.getText());
-                    account.withdraw(amount);
-                    outputArea.append("Withdrew Rupees " + amount + " from account " + accountNumber + "\n");
-                } catch (InvalidTransactionException ex) {
-                    outputArea.append(ex.getMessage() + "\n");
-                } catch (NumberFormatException ex) {
-                    outputArea.append("Please enter a valid amount.\n");
-                }
-            } else {
-                outputArea.append("Account does not exist.\n");
-            }
-        }
+    private void viewBalance() {
+        JOptionPane.showMessageDialog(this, "Current Balance: ₹" + currentAccount.getBalance());
     }
 
-    private class BalanceListener implements ActionListener {
-        public void actionPerformed(ActionEvent e) {
-            String accountNumber = accountNumberField.getText();
-            BankAccount account = accounts.get(accountNumber);
-            if (account != null) {
-                outputArea.append("Balance for account " + accountNumber + ": $" + account.getBalance() + "\n");
-            } else {
-                outputArea.append("Account does not exist.\n");
-            }
+    private void viewTransactionHistory() {
+        StringBuilder history = new StringBuilder("Transaction History:\n");
+        for (String transaction : currentAccount.getTransactionHistory()) {
+            history.append(transaction).append("\n");
         }
+        JOptionPane.showMessageDialog(this, history.toString());
     }
 
-    private class TransactionHistoryListener implements ActionListener {
+    // Login Action Listener
+    private class LoginListener implements ActionListener {
         public void actionPerformed(ActionEvent e) {
-            String accountNumber = accountNumberField.getText();
-            BankAccount account = accounts.get(accountNumber);
-            if (account != null) {
-                outputArea.append("Transaction history for account " + accountNumber + ":\n");
-                for (String transaction : account.getTransactionHistory()) {
-                    outputArea.append(transaction + "\n");
-                }
+            String accountNumber = loginAccountNumberField.getText();
+            String password = new String(passwordField.getPassword());
+
+            if (accounts.containsKey(accountNumber) && password.equals("password")) { // Hardcoded for simplicity
+                currentAccount = accounts.get(accountNumber); // Set the current account
+                initHomeUI();
             } else {
-                outputArea.append("Account does not exist.\n");
+                JOptionPane.showMessageDialog(BankingApplication.this, "Invalid Account Number or Password");
             }
         }
     }
@@ -226,6 +269,10 @@ public class BankingApplication extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             BankingApplication app = new BankingApplication();
+            
+            // Add a sample account for testing
+            app.accounts.put("12345678", new BankAccount("12345678")); // Using "12345678" as a test account number
+            
             app.setVisible(true);
         });
     }
