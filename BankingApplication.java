@@ -191,20 +191,16 @@ public class BankingApplication extends JFrame {
     }
     
     
-    
-    
     private void initHomeUI() {
         JPanel homePanel = new JPanel(new BorderLayout());
     
         JLabel bankLabel = new JLabel("THE GTT BANK", SwingConstants.CENTER);
         bankLabel.setFont(new Font("Serif", Font.BOLD, 36));
         homePanel.add(bankLabel, BorderLayout.CENTER);
-    
-        /
+        
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.setBackground(new Color(173, 216, 230)); 
     
-        
         JButton depositButton = new JButton("Deposit");
         depositButton.addActionListener(e -> performDeposit());
         buttonPanel.add(depositButton);
